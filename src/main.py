@@ -59,4 +59,13 @@ async def write_brand_to_file():
                 bh_file.write("\n")
 
 
-asyncio.run(write_brand_to_file())
+# asyncio.run(write_brand_to_file())
+
+
+if __name__ == '__main__':
+    thousand_list = list(range(1, 10000))
+    my_w3 = get_w3_instance()
+    my_contract = get_bh_contract_instance(my_w3)
+    owners = my_contract.functions.explicitOwnershipsOf(thousand_list).call()
+    print(owners)
+
