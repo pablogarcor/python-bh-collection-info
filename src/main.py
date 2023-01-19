@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 import os
 import json
+from collections import defaultdict
 
 load_dotenv()  # take environment variables from .env.
 
@@ -61,11 +62,58 @@ async def write_brand_to_file():
 
 # asyncio.run(write_brand_to_file())
 
+def get_first_element_of_tuple(n):
+    return n[0]
+
+
+def get_bh_brand_of_line(n):
+    json_line = json.loads(n)
+    return json_line['brand']
+
+
+async def get_bh_owners(bh_contract):
+    owners = bh_contract.functions.explicitOwnershipsOf(thousand_list).call()
+    owners_list = list(map(get_first_element_of_tuple, owners))
+    return owners_list
+
+
+async def get_bh_brands():
+    with open('bh_list.txt', 'r') as bh_file:
+        lines = bh_file.readlines()
+        brands_list = list(map(get_bh_brand_of_line, lines))
+        return brands_list
+
+
+async def get_bh_brands_per_owner_list(contract):
+    bh_owner_and_brands_list = []
+    bh_owners_brands_results = await asyncio.gather(asyncio.ensure_future(get_bh_brands()),
+                                                    asyncio.ensure_future(get_bh_owners(contract)))
+    for x in range(0, 9999):
+        owner = bh_owners_brands_results[1][x]
+        brand = bh_owners_brands_results[0][x]
+        bh_owner_and_brands_list.append((owner, brand))
+
+    mapp = defaultdict(list)
+    for key, val in bh_owner_and_brands_list:
+        mapp[key].append(val)
+    res = [(key, *val) for key, val in mapp.items()]
+    return res
+
+
+def get_list_of_sixers(brands_per_owner_list):
+    list_of_sixers = []
+    check_list=['ランダム Instant Foods', 'Fraz', 'DGAF', 'HedCrank', 'ShitHead', '8008135']
+    for brands_per_owner_tuple in brands_per_owner_list:
+        if all(t in brands_per_owner_tuple for t in check_list):
+            list_of_sixers.append(brands_per_owner_tuple[0])
+    return list_of_sixers
+
 
 if __name__ == '__main__':
     thousand_list = list(range(1, 10000))
     my_w3 = get_w3_instance()
     my_contract = get_bh_contract_instance(my_w3)
-    owners = my_contract.functions.explicitOwnershipsOf(thousand_list).call()
-    print(owners)
-
+    brands_per_user_list = asyncio.run(get_bh_brands_per_owner_list(my_contract))
+    list_of_sixers = get_list_of_sixers(brands_per_user_list)
+    print(list_of_sixers)
+    print(len(list_of_sixers))
